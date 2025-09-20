@@ -1,4 +1,4 @@
-module sigs.k8s.io/minikube-prelods
+module sigs.k8s.io/minikube-preloads
 
 go 1.24.5
 
