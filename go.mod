@@ -1,11 +1,11 @@
 module sigs.k8s.io/minikube-preloads
 
-go 1.24.5
+go 1.25.0
 
 replace github.com/docker/machine => github.com/minikube-machine/machine v0.0.0-20240815173309-ffb6b643c381
 
 require (
-	github.com/google/go-github/v74 v74.0.0
+	github.com/google/go-github/v79 v79.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper v1.21.0
 	k8s.io/klog/v2 v2.130.1
