@@ -1,0 +1,44 @@
+name: Preload Assets
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to upload assets to (default: latest release)"
+        required: false
+        default: "latest"
+      minikube_ref:
+        description: "minikube git ref to build from (default: HEAD)"
+        required: false
+        default: "HEAD"
+      limit:
+        description: "Value for --limit passed to preload-generator (default: 3)"
+        required: false
+        default: "3"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.release_tag || 'latest' }}
+      MINIKUBE_REF: ${{ github.event.inputs.minikube_ref || 'HEAD' }}
+      PRELOAD_LIMIT: ${{ github.event.inputs.limit || '3' }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout minikube-preloads
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+
+      - name: Generate preloads and upload release assets
+        run: make release-preloads
