@@ -45,7 +45,10 @@ upload-preloads:
 	@test -n "$(GITHUB_TOKEN)" || (echo "GITHUB_TOKEN must be set for gh release upload" && exit 1)
 	@test -d "$(ARTIFACT_DIR)" || (echo "Artifact directory $(ARTIFACT_DIR) not found. Run generate-preloads first." && exit 1)
 	@artifacts=$$(find $(ARTIFACT_DIR) -type f); \
-	[ -n "$$artifacts" ] || (echo "No artifacts to upload from $(ARTIFACT_DIR)" && exit 1); \
+	if [ -z "$$artifacts" ]; then \
+		echo "No artifacts to upload from $(ARTIFACT_DIR); skipping upload"; \
+		exit 0; \
+	fi; \
 	repo=$(GITHUB_REPOSITORY); \
 	if [ -z "$$repo" ]; then \
 		repo=$$(gh repo view --json nameWithOwner --jq .nameWithOwner); \
