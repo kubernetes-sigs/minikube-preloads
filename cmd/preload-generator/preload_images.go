@@ -52,6 +52,7 @@ var (
 	limit                 = flag.Int("limit", 0, "Limit the number of tarballs to generate")
 	armUpload             = flag.Bool("arm-upload", false, "Upload the arm64 preload tarballs to GCS")
 	armPreloadsDir        = flag.String("arm-preloads-dir", "artifacts", "Directory containing the arm64 preload tarballs")
+	preloadSrc            = flag.String("preload-src", "gcs", "Source to check for existing preloads (gcs|gh)")
 )
 
 type preloadCfg struct {
@@ -63,8 +64,24 @@ func (p preloadCfg) String() string {
 	return fmt.Sprintf("%q/%q", p.runtime, p.k8sVer)
 }
 
+func preloadChecker(src string) (func(string, string) bool, error) {
+	switch src {
+	case "gcs":
+		return download.PreloadExistsGCS, nil
+	case "gh":
+		return download.PreloadExistsGH, nil
+	default:
+		return nil, fmt.Errorf("invalid preload source %q, valid options are gcs or gh", src)
+	}
+}
+
 func main() {
 	flag.Parse()
+
+	preloadExists, err := preloadChecker(*preloadSrc)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if *armUpload {
 		if err := uploadArmTarballs(*armPreloadsDir); err != nil {
@@ -99,7 +116,7 @@ out:
 				break out
 			}
 			// Since none/mock are the only exceptions, it does not matter what driver we choose.
-			if !download.PreloadExists(kv, cr, "docker") {
+			if !preloadExists(kv, cr) {
 				toGenerate = append(toGenerate, preloadCfg{kv, cr})
 				i++
 				fmt.Printf("[%d] A preloaded tarball for k8s version %s - runtime %q does not exist.\n", i, kv, cr)
