@@ -21,15 +21,15 @@ build:
 clean-workdir:
 	rm -rf $(WORKDIR)
 
-.PHONY: generate-preloads
-generate-preloads: clean-workdir
+.PHONY: generate-preloads-github
+generate-preloads-github: clean-workdir
 	@mkdir -p $(WORKDIR) $(ARTIFACT_DIR)
 	git clone --filter=blob:none $(MINIKUBE_REPO) $(WORKDIR)
 	cd $(WORKDIR) && git fetch origin $(MINIKUBE_REF)
 	cd $(WORKDIR) && git checkout FETCH_HEAD
 	cd $(WORKDIR) && make update-kubeadm-constants
 	cd $(WORKDIR) && make out/minikube out/preload-generator
-	cd $(WORKDIR) && out/preload-generator --no-upload --limit $(PRELOAD_LIMIT)
+	cd $(WORKDIR) && out/preload-generator --preload-src gh --no-upload --limit $(PRELOAD_LIMIT) 
 	@mkdir -p $(ARTIFACT_DIR)
 	@artifacts=$$(find $(WORKDIR)/out -maxdepth 1 -type f -name '*.lz4' -print); \
 	if [ -z "$$artifacts" ]; then \
@@ -40,8 +40,8 @@ generate-preloads: clean-workdir
 		done; \
 	fi
 
-.PHONY: upload-preloads
-upload-preloads:
+.PHONY: upload-preloads-github
+upload-preloads-github:
 	@test -n "$(GITHUB_TOKEN)" || (echo "GITHUB_TOKEN must be set for gh release upload" && exit 1)
 	@test -d "$(ARTIFACT_DIR)" || (echo "Artifact directory $(ARTIFACT_DIR) not found. Run generate-preloads first." && exit 1)
 	@artifacts=$$(find $(ARTIFACT_DIR) -type f); \
@@ -60,5 +60,5 @@ upload-preloads:
 	echo "Uploading assets to $$repo release $$tag"; \
 	gh release upload --repo "$$repo" --clobber "$$tag" $$artifacts
 
-.PHONY: release-preloads
-release-preloads: generate-preloads upload-preloads
+.PHONY: release-preloads-github
+release-preloads-github: generate-preloads-github upload-preloads-github

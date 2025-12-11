@@ -41,4 +41,4 @@ jobs:
           go-version: "1.22.x"
 
       - name: Generate preloads and upload release assets
-        run: make release-preloads
+        run: make release-preloads-github
