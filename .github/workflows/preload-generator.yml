@@ -16,7 +16,7 @@ on:
       limit:
         description: "Value for --limit passed to preload-generator (default: 3)"
         required: false
-        default: "3"
+        default: "5"
 
 permissions:
   contents: write
