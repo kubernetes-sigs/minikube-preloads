@@ -21,6 +21,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: preload-generator
+  cancel-in-progress: true
+
 jobs:
   build-and-upload:
     strategy:
