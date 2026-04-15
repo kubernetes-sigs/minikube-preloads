@@ -1,4 +1,5 @@
 # minikube-preloads
+![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/kubernetes-sigs/minikube-preloads/latest/total)
 
 Preloaded images for Kubernetes version for each container runtime and cpu architecture and filesystem.
 
