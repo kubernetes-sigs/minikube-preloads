@@ -32,6 +32,12 @@ build:
 	@mkdir -p $(BIN_DIR) $(GOCACHE) $(GOMODCACHE)
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go build -o $(BIN) ./cmd/preload-generator
 
+.PHONY: test
+test:
+	@mkdir -p $(GOCACHE) $(GOMODCACHE)
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go test -v ./...
+
+
 .PHONY: clean-workdir
 clean-workdir:
 	rm -rf $(WORKDIR)
