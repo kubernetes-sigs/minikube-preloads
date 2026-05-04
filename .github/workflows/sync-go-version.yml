@@ -1,0 +1,65 @@
+name: Sync Go Version with Minikube
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-go-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Fetch Go version from minikube go.mod
+        id: minikube_go
+        run: |
+          GOMOD=$(curl -sSf https://raw.githubusercontent.com/kubernetes/minikube/master/go.mod) || {
+            echo "ERROR: failed to download kubernetes/minikube go.mod" >&2
+            exit 1
+          }
+          VERSION=$(echo "${GOMOD}" | grep '^go ' | awk '{print $2}')
+          if [ -z "${VERSION}" ]; then
+            echo "ERROR: could not parse Go version from kubernetes/minikube go.mod" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: ${{ steps.minikube_go.outputs.version }}
+          cache: true
+
+      - name: Update go.mod and go.sum
+        id: update
+        run: |
+          go mod edit -go="${{ steps.minikube_go.outputs.version }}"
+          go mod tidy
+          if git diff --quiet go.mod go.sum; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        if: steps.update.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: sync Go version with kubernetes/minikube go.mod"
+          title: "chore: sync Go version ${{ steps.minikube_go.outputs.version }} from kubernetes/minikube"
+          body: |
+            This PR was automatically created by the [sync-go-version](${{ github.server_url }}/${{ github.repository }}/actions/workflows/sync-go-version.yml) workflow.
+
+            Updates the `go` directive in `go.mod` to match the version used in [kubernetes/minikube](https://github.com/kubernetes/minikube/blob/master/go.mod).
+
+            **New Go version:** `${{ steps.minikube_go.outputs.version }}`
+          branch: chore/sync-go-version  # fixed branch so only one sync PR is open at a time
+          delete-branch: true
+          labels: automated
