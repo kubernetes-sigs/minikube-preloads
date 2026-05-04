@@ -1,6 +1,7 @@
 module sigs.k8s.io/minikube-preloads
 
-go 1.25.0
+go 1.26.0
+
 
 replace github.com/docker/machine => github.com/minikube-machine/machine v0.0.0-20240815173309-ffb6b643c381
 
