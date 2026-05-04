@@ -301,10 +301,10 @@ func prioritizeVersions(versions []string, recentMinors int, priority3Limit int)
 		return versions
 	}
 
-	// Find max minor version
+	// Find max stable minor version
 	var maxMinor uint64
 	for _, pv := range parsed {
-		if pv.sem.Major == 1 {
+		if pv.sem.Major == 1 && len(pv.sem.Pre) == 0 {
 			if pv.sem.Minor > maxMinor {
 				maxMinor = pv.sem.Minor
 			}
