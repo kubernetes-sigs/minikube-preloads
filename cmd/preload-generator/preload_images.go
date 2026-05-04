@@ -275,13 +275,16 @@ type parsedVersion struct {
 
 // prioritizeVersions sorts K8s version strings based on three priorities:
 //
-//   - Priority 1: The past 5 minor versions (including the newest found minor version)
-//     and all their patches (e.g., if newest is v1.36, then v1.36.x to v1.32.x), ordered descending.
+//   - Priority 1: The past `recentMinors` minor versions (including the newest found
+//     minor version) and all their patches (e.g., if `recentMinors=5` and newest is
+//     v1.36, then v1.36.x to v1.32.x), ordered descending. If `recentMinors <= 0`,
+//     Priority 1 will be completely empty.
 //
 //   - Priority 2: The latest (highest) patch of any older minor version (e.g., v1.31.14, v1.30.14),
 //     ordered descending by minor version.
 //
-// - Priority 3: All other patches of older minor versions, ordered descending.
+//   - Priority 3: All other patches of older minor versions, ordered descending and
+//     capped to `priority3Limit` if greater than 0.
 func prioritizeVersions(versions []string, recentMinors int, priority3Limit int) []string {
 	var parsed []parsedVersion
 	for _, v := range versions {
@@ -309,10 +312,14 @@ func prioritizeVersions(versions []string, recentMinors int, priority3Limit int)
 	}
 
 	var cutoffMinor uint64
-	if recentMinors > 0 && maxMinor >= uint64(recentMinors-1) {
-		cutoffMinor = maxMinor - uint64(recentMinors-1)
+	if recentMinors > 0 {
+		if maxMinor >= uint64(recentMinors-1) {
+			cutoffMinor = maxMinor - uint64(recentMinors-1)
+		} else {
+			cutoffMinor = 0
+		}
 	} else {
-		cutoffMinor = 0
+		cutoffMinor = maxMinor + 1
 	}
 
 	var priority1 []parsedVersion
