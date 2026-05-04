@@ -1,4 +1,4 @@
-GOLINT_VERSION ?= v2.7.2
+GOLINT_VERSION ?= v2.11.4
 # see https://golangci-lint.run/docs/configuration/file/ for config details
 GOLINT_CONFIG ?= .golangci.min.yaml
 # Set this to --verbose to see details about the linters and formatters used
@@ -31,6 +31,12 @@ GITHUB_REPOSITORY ?=
 build:
 	@mkdir -p $(BIN_DIR) $(GOCACHE) $(GOMODCACHE)
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go build -o $(BIN) ./cmd/preload-generator
+
+.PHONY: test
+test:
+	@mkdir -p $(GOCACHE) $(GOMODCACHE)
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go test -v ./...
+
 
 .PHONY: clean-workdir
 clean-workdir:

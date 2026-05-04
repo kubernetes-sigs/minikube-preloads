@@ -25,10 +25,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime/debug"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
 
+	"github.com/blang/semver/v4"
 	"github.com/spf13/viper"
 	"k8s.io/minikube/pkg/minikube/constants"
 	"k8s.io/minikube/pkg/minikube/download"
@@ -53,6 +55,8 @@ var (
 	armUpload             = flag.Bool("arm-upload", false, "Upload the arm64 preload tarballs to GCS")
 	armPreloadsDir        = flag.String("arm-preloads-dir", "artifacts", "Directory containing the arm64 preload tarballs")
 	preloadSrc            = flag.String("preload-src", "gcs", "Source to check for existing preloads (gcs|gh)")
+	recentMinors          = flag.Int("recent-minors", 5, "Number of recent minor Kubernetes versions to prioritize and generate all patches for")
+	priority3Limit        = flag.Int("priority-3-limit", 3, "Maximum number of Priority 3 versions (older patches of older minor versions) to keep. If 0, all of them will be kept.")
 )
 
 type preloadCfg struct {
@@ -153,7 +157,8 @@ func collectK8sVers() ([]string, error) {
 		constants.NewestKubernetesVersion,
 		constants.OldestKubernetesVersion,
 	}, k8sVersions...)
-	return util.RemoveDuplicateStrings(versions), nil
+	unique := util.RemoveDuplicateStrings(versions)
+	return prioritizeVersions(unique, *recentMinors, *priority3Limit), nil
 }
 
 func makePreload(cfg preloadCfg) error {
@@ -261,4 +266,132 @@ func exit(msg string, err error) {
 		fmt.Printf("error cleaning up minikube at start up: %v\n", err)
 	}
 	os.Exit(60)
+}
+
+type parsedVersion struct {
+	raw string
+	sem semver.Version
+}
+
+// prioritizeVersions sorts K8s version strings based on three priorities:
+//
+//   - Priority 1: The past `recentMinors` minor versions (including the newest found
+//     minor version) and all their patches (e.g., if `recentMinors=5` and newest is
+//     v1.36, then v1.36.x to v1.32.x), ordered descending. If `recentMinors <= 0`,
+//     Priority 1 will be completely empty.
+//
+//   - Priority 2: The latest (highest) patch of any older minor version (e.g., v1.31.14, v1.30.14),
+//     ordered descending by minor version.
+//
+//   - Priority 3: All other patches of older minor versions, ordered descending and
+//     capped to `priority3Limit` if greater than 0.
+func prioritizeVersions(versions []string, recentMinors int, priority3Limit int) []string {
+	var parsed []parsedVersion
+	for _, v := range versions {
+		clean := strings.TrimPrefix(v, "v")
+		sv, err := semver.Parse(clean)
+		if err != nil {
+			log.Printf("Warning: failed to parse version %q: %v", v, err)
+			continue
+		}
+		parsed = append(parsed, parsedVersion{raw: v, sem: sv})
+	}
+
+	if len(parsed) == 0 {
+		return versions
+	}
+
+	// Find max stable minor version
+	var maxMinor uint64
+	for _, pv := range parsed {
+		if pv.sem.Major == 1 && len(pv.sem.Pre) == 0 {
+			if pv.sem.Minor > maxMinor {
+				maxMinor = pv.sem.Minor
+			}
+		}
+	}
+
+	var cutoffMinor uint64
+	if recentMinors > 0 {
+		if maxMinor >= uint64(recentMinors-1) {
+			cutoffMinor = maxMinor - uint64(recentMinors-1)
+		} else {
+			cutoffMinor = 0
+		}
+	} else {
+		cutoffMinor = maxMinor + 1
+	}
+
+	var priority1 []parsedVersion
+	// Map from minor version to all its parsed versions (for minor < cutoffMinor)
+	olderGroups := make(map[uint64][]parsedVersion)
+
+	for _, pv := range parsed {
+		if pv.sem.Major != 1 {
+			olderGroups[pv.sem.Minor] = append(olderGroups[pv.sem.Minor], pv)
+			continue
+		}
+
+		if pv.sem.Minor >= cutoffMinor {
+			priority1 = append(priority1, pv)
+		} else {
+			olderGroups[pv.sem.Minor] = append(olderGroups[pv.sem.Minor], pv)
+		}
+	}
+
+	// Sort Priority 1 descending
+	sort.Slice(priority1, func(i, j int) bool {
+		return priority1[i].sem.GT(priority1[j].sem)
+	})
+
+	// Process older groups to extract Priority 2 and Priority 3
+	var priority2 []parsedVersion
+	var priority3 []parsedVersion
+
+	// Get older minor versions in descending order
+	var olderMinors []uint64
+	for m := range olderGroups {
+		olderMinors = append(olderMinors, m)
+	}
+	sort.Slice(olderMinors, func(i, j int) bool {
+		return olderMinors[i] > olderMinors[j]
+	})
+
+	for _, m := range olderMinors {
+		group := olderGroups[m]
+		// Sort group descending
+		sort.Slice(group, func(i, j int) bool {
+			return group[i].sem.GT(group[j].sem)
+		})
+
+		// First is the highest patch of this minor version
+		priority2 = append(priority2, group[0])
+		// The rest go to Priority 3
+		if len(group) > 1 {
+			priority3 = append(priority3, group[1:]...)
+		}
+	}
+
+	// Sort Priority 3 descending
+	sort.Slice(priority3, func(i, j int) bool {
+		return priority3[i].sem.GT(priority3[j].sem)
+	})
+
+	if priority3Limit > 0 && len(priority3) > priority3Limit {
+		priority3 = priority3[:priority3Limit]
+	}
+
+	// Concatenate all priorities
+	var result []string
+	for _, pv := range priority1 {
+		result = append(result, pv.raw)
+	}
+	for _, pv := range priority2 {
+		result = append(result, pv.raw)
+	}
+	for _, pv := range priority3 {
+		result = append(result, pv.raw)
+	}
+
+	return result
 }

@@ -1,10 +1,12 @@
 module sigs.k8s.io/minikube-preloads
 
-go 1.25.0
+go 1.26.0
+
 
 replace github.com/docker/machine => github.com/minikube-machine/machine v0.0.0-20240815173309-ffb6b643c381
 
 require (
+	github.com/blang/semver/v4 v4.0.0
 	github.com/google/go-github/v79 v79.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper v1.21.0
@@ -51,7 +53,6 @@ require (
 	github.com/aws/smithy-go v1.22.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
-	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/briandowns/spinner v1.23.2 // indirect
 	github.com/c4milo/gotoolkit v0.0.0-20190525173301-67483a18c17a // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
