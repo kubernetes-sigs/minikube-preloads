@@ -72,3 +72,94 @@ func TestParseContainerdSnapshotterCases(t *testing.T) {
 		})
 	}
 }
+
+func TestPrioritizeVersions(t *testing.T) {
+	input := []string{
+		"v1.30.12",
+		"v1.36.0",
+		"v1.31.14",
+		"v1.35.4",
+		"v1.29.15",
+		"v1.35.0-rc.1",
+		"v1.30.14",
+		"v1.32.1",
+		"v1.31.13",
+		"v1.28.0",
+		"v1.32.0",
+	}
+
+	t.Run("recentMinors=5, priority3Limit=0", func(t *testing.T) {
+		want := []string{
+			"v1.36.0",
+			"v1.35.4",
+			"v1.35.0-rc.1",
+			"v1.32.1",
+			"v1.32.0",
+			"v1.31.14",
+			"v1.30.14",
+			"v1.29.15",
+			"v1.28.0",
+			"v1.31.13",
+			"v1.30.12",
+		}
+		got := prioritizeVersions(input, 5, 0)
+		if len(got) != len(want) {
+			t.Fatalf("got length %d, want %d", len(got), len(want))
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("at index %d: got %s, want %s", i, got[i], want[i])
+			}
+		}
+	})
+
+	t.Run("recentMinors=5, priority3Limit=1", func(t *testing.T) {
+		want := []string{
+			"v1.36.0",
+			"v1.35.4",
+			"v1.35.0-rc.1",
+			"v1.32.1",
+			"v1.32.0",
+			"v1.31.14",
+			"v1.30.14",
+			"v1.29.15",
+			"v1.28.0",
+			"v1.31.13",
+		}
+		got := prioritizeVersions(input, 5, 1)
+		if len(got) != len(want) {
+			t.Fatalf("got length %d, want %d", len(got), len(want))
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("at index %d: got %s, want %s", i, got[i], want[i])
+			}
+		}
+	})
+
+	t.Run("recentMinors=3, priority3Limit=2", func(t *testing.T) {
+		want := []string{
+			"v1.36.0",
+			"v1.35.4",
+			"v1.35.0-rc.1",
+			"v1.32.1",
+			"v1.31.14",
+			"v1.30.14",
+			"v1.29.15",
+			"v1.28.0",
+			"v1.32.0",
+			"v1.31.13",
+		}
+		got := prioritizeVersions(input, 3, 2)
+		if len(got) != len(want) {
+			t.Fatalf("got length %d, want %d", len(got), len(want))
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("at index %d: got %s, want %s", i, got[i], want[i])
+			}
+		}
+	})
+}
+
+
