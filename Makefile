@@ -1,3 +1,18 @@
+GOLINT_VERSION ?= v2.7.2
+# see https://golangci-lint.run/docs/configuration/file/ for config details
+GOLINT_CONFIG ?= .golangci.min.yaml
+# Set this to --verbose to see details about the linters and formatters used
+GOLINT_VERBOSE ?=
+# Limit number of default jobs, to avoid the CI builds running out of memory
+GOLINT_JOBS ?= 4
+# see https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
+GOLINT_GOGC ?= 100
+# options for lint (golangci-lint)
+GOLINT_OPTIONS = \
+	  --max-issues-per-linter 0 --max-same-issues 0 \
+	  --config $(GOLINT_CONFIG) $(GOLINT_VERBOSE)
+
+
 BIN_DIR := out
 BIN := $(BIN_DIR)/minikube-preloads
 GOCACHE ?= $(CURDIR)/.cache/go-build
@@ -62,3 +77,12 @@ upload-preloads-github:
 
 .PHONY: release-preloads-github
 release-preloads-github: generate-preloads-github upload-preloads-github
+
+out/linters/golangci-lint-$(GOLINT_VERSION):
+	mkdir -p out/linters
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b out/linters $(GOLINT_VERSION)
+	mv out/linters/golangci-lint out/linters/golangci-lint-$(GOLINT_VERSION)
+
+.PHONY: lint
+lint: out/linters/golangci-lint-$(GOLINT_VERSION) ## Run lint
+	./out/linters/golangci-lint-$(GOLINT_VERSION) run ${GOLINT_OPTIONS} ./...
