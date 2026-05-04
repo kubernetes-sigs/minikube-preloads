@@ -1,4 +1,4 @@
-GOLINT_VERSION ?= v2.7.2
+GOLINT_VERSION ?= v2.11.4
 # see https://golangci-lint.run/docs/configuration/file/ for config details
 GOLINT_CONFIG ?= .golangci.min.yaml
 # Set this to --verbose to see details about the linters and formatters used
